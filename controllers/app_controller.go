@@ -18,7 +18,10 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
+	"reflect"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,6 +29,10 @@ import (
 
 	"github.com/go-logr/logr"
 	appv1 "github.com/max-f-z/operator-demo/api/v1"
+	"github.com/max-f-z/operator-demo/resource/deployment"
+	"github.com/max-f-z/operator-demo/resource/service"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // AppReconciler reconciles a App object
@@ -52,6 +59,86 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	_ = log.FromContext(ctx)
 
 	// your logic here
+	instance := &appv1.App{}
+	if err := r.Client.Get(ctx, req.NamespacedName, instance); err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// crd 资源已经标记为删除
+	if instance.DeletionTimestamp != nil {
+		return ctrl.Result{}, nil
+	}
+
+	oldDeploy := &appsv1.Deployment{}
+	if err := r.Client.Get(ctx, req.NamespacedName, oldDeploy); err != nil {
+		// deployment 不存在，创建
+		if errors.IsNotFound(err) {
+			// 创建deployment
+			if err := r.Client.Create(ctx, deployment.New(instance)); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			// 创建service
+			if err := r.Client.Create(ctx, service.New(instance)); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			// 更新 crd 资源的 Annotations
+			data, _ := json.Marshal(instance.Spec)
+			if instance.Annotations != nil {
+				instance.Annotations["spec"] = string(data)
+			} else {
+				instance.Annotations = map[string]string{"spec": string(data)}
+			}
+			if err := r.Client.Update(ctx, instance); err != nil {
+				return ctrl.Result{}, err
+			}
+		} else {
+			return ctrl.Result{}, err
+		}
+	} else {
+		// deployment 存在，更新
+		oldSpec := appv1.AppSpec{}
+		if err := json.Unmarshal([]byte(instance.Annotations["spec"]), &oldSpec); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		if !reflect.DeepEqual(instance.Spec, oldSpec) {
+			// 更新deployment
+			newDeploy := deployment.New(instance)
+			oldDeploy.Spec = newDeploy.Spec
+			if err := r.Client.Update(ctx, oldDeploy); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			// 更新service
+			newService := service.New(instance)
+			oldService := &corev1.Service{}
+			if err := r.Client.Get(ctx, req.NamespacedName, oldService); err != nil {
+				return ctrl.Result{}, err
+			}
+			clusterIP := oldService.Spec.ClusterIP // 更新 service 必须设置老的 clusterIP
+			oldService.Spec = newService.Spec
+			oldService.Spec.ClusterIP = clusterIP
+			if err := r.Client.Update(ctx, oldService); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			// 更新 crd 资源的 Annotations
+			data, _ := json.Marshal(instance.Spec)
+			if instance.Annotations != nil {
+				instance.Annotations["spec"] = string(data)
+			} else {
+				instance.Annotations = map[string]string{"spec": string(data)}
+			}
+			if err := r.Client.Update(ctx, instance); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
 
 	return ctrl.Result{}, nil
 }

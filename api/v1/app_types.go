@@ -32,10 +32,10 @@ type AppSpec struct {
 
 	// Foo is an example field of App. Edit app_types.go to remove/update
 	Foo      string                      `json:"foo,omitempty"`
-	Replicas *int32                      `json:"replicas`
+	Replicas *int32                      `json:"replicas"`
 	Image    string                      `json:"image"`
 	Resource corev1.ResourceRequirements `json:"resources,omitempty"`
-	Envs     []corev1.EnvVar             `json:"evns,omitempty"`
+	Envs     []corev1.EnvVar             `json:"envs,omitempty"`
 	Ports    []corev1.ServicePort        `json:"ports,omitempty"`
 }
 
