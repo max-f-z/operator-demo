@@ -24,7 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/go-logr/logr"
 	appv1 "github.com/max-f-z/operator-demo/api/v1"
+	Log    logr.Logger
 )
 
 // AppReconciler reconciles a App object
