@@ -26,13 +26,13 @@ import (
 
 	"github.com/go-logr/logr"
 	appv1 "github.com/max-f-z/operator-demo/api/v1"
-	Log    logr.Logger
 )
 
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 //+kubebuilder:rbac:groups=app.example.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
