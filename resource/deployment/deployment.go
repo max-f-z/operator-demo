@@ -55,7 +55,7 @@ func newContainers(app *appv1.App) []corev1.Container {
 			Image:           app.Spec.Image,
 			Ports:           containerPorts,
 			Env:             app.Spec.Envs,
-			Resources:       app.Spec.Resources,
+			Resources:       app.Spec.Resource,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 		},
 	}
