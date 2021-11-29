@@ -23,3 +23,6 @@ testbin/*
 *.swp
 *.swo
 *~
+.vscode
+config/crd/bases/app.example.com_apps.yaml
+config/rbac/role.yaml
